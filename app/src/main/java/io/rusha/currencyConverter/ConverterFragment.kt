@@ -12,12 +12,16 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
 import hu.akarnokd.rxjava3.retrofit.RxJava3CallAdapterFactory
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class ConverterFragment : Fragment(R.layout.converter_fragment) {
     var conversions: Conversions? = null
+    private val disposable = CompositeDisposable()
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -27,7 +31,9 @@ class ConverterFragment : Fragment(R.layout.converter_fragment) {
             .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
             .build()
         val api = retrofit.create(ConverterApi::class.java)
-        api.getConversions()
+
+        disposable.add(
+            api.getConversions()
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
@@ -38,6 +44,7 @@ class ConverterFragment : Fragment(R.layout.converter_fragment) {
                     println(e)
                 }
             )
+        )
 
         val fromCurrencyText = view.findViewById<TextView>(R.id.fromCurrencyText)
         val toCurrencyText = view.findViewById<TextView>(R.id.toCurrencyText)
@@ -78,6 +85,11 @@ class ConverterFragment : Fragment(R.layout.converter_fragment) {
             },
             current = currencyText.text.toString()
         )
+    }
+
+    override fun onStop() {
+        super.onStop()
+        disposable.dispose()
     }
 
 }
