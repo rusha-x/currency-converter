@@ -13,13 +13,14 @@ import com.google.android.material.textfield.TextInputEditText
 import hu.akarnokd.rxjava3.retrofit.RxJava3CallAdapterFactory
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class ConverterFragment : Fragment(R.layout.converter_fragment) {
     var conversions: Conversions? = null
+
+    //Реализация отмены всех сетевых запросов с RxJava
     private val disposable = CompositeDisposable()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -32,18 +33,19 @@ class ConverterFragment : Fragment(R.layout.converter_fragment) {
             .build()
         val api = retrofit.create(ConverterApi::class.java)
 
+        //Каждый запрос нужно записать в disposable
         disposable.add(
-            api.getConversions()
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(
-                { serverConversions ->
-                    conversions = serverConversions
-                },
-                { e ->
-                    println(e)
-                }
-            )
+            api.getConversions()                          // Получаем Single1 с запросом
+                .subscribeOn(Schedulers.io())             // Оборачиваем Single1 в S2, который выполнит запрос в одном из потоков io
+                .observeOn(AndroidSchedulers.mainThread())// S2 оборачиваем в S3, определяем в каком потоке обработка ответов
+                .subscribe(                               // Запускаем S3 и подписываемся на его результат
+                    { serverConversions ->                // Калбэк на успешный запрос
+                        conversions = serverConversions
+                    },
+                    { e ->                                // Калбэк на ошибку
+                        println(e)
+                    }
+                )
         )
 
         val fromCurrencyText = view.findViewById<TextView>(R.id.fromCurrencyText)
@@ -89,6 +91,8 @@ class ConverterFragment : Fragment(R.layout.converter_fragment) {
 
     override fun onStop() {
         super.onStop()
+
+        //Отменяем все запросы, когда фрагмент перестает быть видимым
         disposable.dispose()
     }
 
